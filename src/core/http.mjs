@@ -173,7 +173,9 @@ export async function chatCompletionStream({
             : typeof delta.reasoning === 'string'
               ? delta.reasoning
               : '';
-        if ((piece || thinkPiece) && firstTokenMs === null) firstTokenMs = Date.now() - startedAt;
+        // 首 token 计时：内容、思考内容或首个 tool_call 都算（纯工具调用响应没有 content）
+        const hasToolDelta = Array.isArray(delta.tool_calls) && delta.tool_calls.length > 0;
+        if ((piece || thinkPiece || hasToolDelta) && firstTokenMs === null) firstTokenMs = Date.now() - startedAt;
         text += piece;
         reasoning += thinkPiece;
         if (Array.isArray(delta.tool_calls)) {

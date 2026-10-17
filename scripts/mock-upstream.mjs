@@ -59,6 +59,29 @@ const server = http.createServer(async (req, res) => {
   // 流式
   if (body.stream) {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+
+    // 流式 + 工具：按 OpenAI 规范用 delta.tool_calls 分片下发
+    if (Array.isArray(body.tools) && body.tools.length) {
+      if (model === 'mock-no-tools') {
+        for (const c of ['I ', 'cannot ', 'call ', 'tools.']) {
+          res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: c } }] })}\n\n`);
+        }
+      } else {
+        const args = JSON.stringify({ location: 'San Francisco' });
+        res.write(
+          `data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'call_mock', type: 'function', function: { name: 'get_weather', arguments: '' } }] } }] })}\n\n`
+        );
+        for (const piece of args.match(/.{1,8}/g) || []) {
+          res.write(
+            `data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: piece } }] } }] })}\n\n`
+          );
+        }
+      }
+      res.write(`data: ${JSON.stringify({ id: 'x', choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }], usage: { total_tokens: 20 } })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    }
+
     const chunks = ['1', '2', '3', '4', '5'];
     for (const c of chunks) {
       res.write(`data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: c + ',' } }] })}\n\n`);

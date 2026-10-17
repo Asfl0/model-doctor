@@ -21,6 +21,7 @@ import {
   REASONING_PROMPT,
   REASONING_EXPECTED,
   TOOL_PROMPT,
+  CHATBOX_TOOL_PROMPT,
   WEATHER_TOOL,
   JSON_PROMPT,
   JSON_REQUIRED_KEYS,
@@ -171,10 +172,13 @@ export async function testVisionChatbox({ baseUrl, apiKey, model, timeoutMs, hea
   }
 }
 
-/** Chatbox 等价工具调用探测：只验证 tools 参数被接受 */
+/** Chatbox 等价工具调用探测：流式请求 + 注册 get_weather（带 execute 桩），
+ *  不在 prompt 里提示用工具，不传 tool_choice / max_tokens，max_steps=1
+ *  即只请求一轮，不做回注。判定：流中真的出现 tool_call。
+ */
 export async function testToolChatbox({ baseUrl, apiKey, model, timeoutMs, headers, signal }) {
   try {
-    const { json, latencyMs } = await chatCompletion({
+    const r = await chatCompletionStream({
       baseUrl,
       apiKey,
       model,
@@ -182,17 +186,34 @@ export async function testToolChatbox({ baseUrl, apiKey, model, timeoutMs, heade
       headers,
       signal,
       body: {
-        messages: [{ role: 'user', content: TOOL_PROMPT }],
+        messages: [{ role: 'user', content: CHATBOX_TOOL_PROMPT }],
         tools: [WEATHER_TOOL],
-        tool_choice: 'auto',
-        max_tokens: 512,
       },
     });
-    const m = extractMessage(json);
-    return mkResult(true, `工具定义被接受，${m.toolCalls.length > 0 ? `返回 ${m.toolCalls.length} 个 tool_call` : '模型未发起调用但请求成功'}`, {
-      latencyMs,
-      toolCalls: m.toolCalls,
-      replyPreview: m.text.slice(0, 300),
+    const calls = r.toolCalls || [];
+    const first = calls[0];
+    if (!first) {
+      return mkResult(false, '请求成功但流中没有任何 tool_call（模型把工具调用降级成了纯文本回复）', {
+        latencyMs: r.latencyMs,
+        firstTokenMs: r.firstTokenMs,
+        finishReason: r.finishReason,
+        toolCalls: [],
+        replyPreview: (r.text || '').slice(0, 300),
+      });
+    }
+    const name = first.function?.name || '';
+    const nameOk = name === 'get_weather';
+    return mkResult(nameOk, nameOk
+      ? `挂起 get_weather 工具后模型发起了工具调用（${r.firstTokenMs ?? '?'}ms 首块）`
+      : `模型发起了工具调用，但函数名不是 get_weather：${name || '(空)'}`, {
+      latencyMs: r.latencyMs,
+      firstTokenMs: r.firstTokenMs,
+      finishReason: r.finishReason,
+      toolName: name,
+      toolCallRaw: first.function?.arguments ?? null,
+      toolCalls: calls,
+      replyPreview: (r.text || '').slice(0, 300),
+      parity: 'Chatbox testToolUseRequest：stream + tools(execute 桩) + maxSteps=1，不传 tool_choice',
     });
   } catch (e) {
     return mkResult(false, e.message, { status: e.status, body: e.body });
@@ -416,7 +437,8 @@ export const TESTS = {
   tool: {
     label: '函数调用（Chatbox 等价）',
     group: 'chatbox',
-    description: '发送 get_weather 工具定义，复刻 Chatbox toolTest：请求成功即通过。',
+    description:
+      '与 Chatbox toolTest 同形：流式请求 + 注册 get_weather 工具（execute 桩），prompt 不提示用工具，不传 tool_choice，maxSteps=1；流中出现 tool_call 即通过。',
     defaultOn: true,
     run: testToolChatbox,
   },

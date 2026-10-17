@@ -29,7 +29,16 @@ export const REASONING_PROMPT =
 
 export const REASONING_EXPECTED = 9;
 
-/** 工具调用探测 */
+/**
+ * 工具调用探测。
+ * Chatbox 原版（src/renderer/utils/model-tester.ts / testToolUseRequest）发送的是一句
+ * 普通问句，既不在 prompt 里点名工具，也不传 tool_choice / max_tokens，
+ * 并且走流式（AI SDK 默认 stream），把 get_weather 注册成一个带 execute 的工具。
+ * 这里保持逐字一致，保证与 Chatbox 结果可比。
+ */
+export const CHATBOX_TOOL_PROMPT = 'What is the weather in San Francisco?';
+
+/** 严格判分项用：显式要求调用工具，并允许 tool_choice:auto */
 export const TOOL_PROMPT = 'What is the weather in San Francisco? Use the get_weather tool.';
 
 export const WEATHER_TOOL = {

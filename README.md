@@ -45,7 +45,7 @@ node bin/model-doctor.mjs --base https://api.openai.com/v1 --key sk-xxx --model 
 
 ✔ 基础对话                     模型正常响应，延迟 812ms
 ✔ 视觉（Chatbox 等价）         视觉输入被接受，模型回复：The image is red.
-✔ 函数调用（Chatbox 等价）     工具定义被接受，返回 1 个 tool_call
+✔ 函数调用（Chatbox 等价）     挂起 get_weather 工具后模型发起了工具调用（402ms 首块）
 ✔ 视觉识别（严格判分）          颜色识别正确（顺序 red,blue,green,yellow）
 ✔ 思考能力                     答案正确（9），并输出了思考内容
 ✔ 函数调用（严格判分）          正确调用 get_weather(location=San Francisco)
@@ -76,13 +76,15 @@ node bin/model-doctor.mjs --base ... --key ... --model ... --tests basic,vision,
 
 Chatbox 开源仓库中 `src/renderer/utils/model-tester.ts` 的判定标准是**只验证请求成功、不校验内容**。本项目的前三项与它行为一致：
 
-| 项 | Chatbox 原名 | 判定 |
-|---|---|---|
-| 基础对话 | `basicTest` | 发 `"Hi"`，**不发错即通过** |
-| 视觉 | `visionTest` | 发 1x1 PNG + "What color is in this image?"，**多模态通道被接受即通过** |
-| 函数调用 | `toolTest` | 发 `get_weather` 工具 + 天气问题，**请求成功即通过** |
+| 项 | Chatbox 原名 | 请求形态 | 判定 |
+|---|---|---|---|
+| 基础对话 | `basicTest` | `messages=[{user,'Hi'}]`，非流式 | **不发错即通过** |
+| 视觉 | `visionTest` | 1x1 PNG + "What color is in this image?"，`onResultChange` 回调 | **多模态通道被接受即通过** |
+| 函数调用 | `toolTest` | 流式 + `tools={get_weather}(execute 桩)`，prompt 只是 `"What is the weather in San Francisco?"`，**不传 `tool_choice`、不传 `max_tokens`**，`maxSteps:1` | **流中出现 `tool_call` 且函数名为 `get_weather`** |
 
-> 这三项只能证明"接口没报错"。一个把图片当空气、把 tools 参数忽略掉的模型同样会全过——这是 Chatbox 原实现的固有限制。
+> 前两项只能证明"接口没报错"：一个把图片当空气的模型同样会全过——这是 Chatbox 原实现的固有限制。
+>
+> 第三项按 Chatbox 的实际请求语义复刻，与早先版本不同：不再往 prompt 里塞"Use the get_weather tool"，也不发 `tool_choice:auto`。这样才能测出模型**自发**的 function call 能力——否则等于替模型把答案写好。判定仍保持宽容（只要真的发起 `get_weather` 就算过），参数正确性交给下面的严格项。
 
 ### 增强判分项
 
