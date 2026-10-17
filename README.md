@@ -80,11 +80,11 @@ Chatbox 开源仓库中 `src/renderer/utils/model-tester.ts` 的判定标准是*
 |---|---|---|---|
 | 基础对话 | `basicTest` | `messages=[{user,'Hi'}]`，非流式 | **不发错即通过** |
 | 视觉 | `visionTest` | 1x1 PNG + "What color is in this image?"，`onResultChange` 回调 | **多模态通道被接受即通过** |
-| 函数调用 | `toolTest` | 流式 + `tools={get_weather}(execute 桩)`，prompt 只是 `"What is the weather in San Francisco?"`，**不传 `tool_choice`、不传 `max_tokens`**，`maxSteps:1` | **流中出现 `tool_call` 且函数名为 `get_weather`** |
+| 函数调用 | `toolTest` | 流式 + `tools={get_weather}(execute 桩)`，prompt 只是 `"What is the weather in San Francisco?"`，**不传 `tool_choice`、不传 `max_tokens`**，`maxSteps:1` | **只要不抛异常就通过**（不校验响应内是否含 `tool_call`） |
 
-> 前两项只能证明"接口没报错"：一个把图片当空气的模型同样会全过——这是 Chatbox 原实现的固有限制。
+> 三项都只能证明"接口没报错"：一个把图片当空气、把 `tools` 数组直接忽略的模型同样会全过——这是 Chatbox 原实现的固有限制，复刻时刻意保留了这个语义，否则无法与官方结果对账。
 >
-> 第三项按 Chatbox 的实际请求语义复刻，与早先版本不同：不再往 prompt 里塞"Use the get_weather tool"，也不发 `tool_choice:auto`。这样才能测出模型**自发**的 function call 能力——否则等于替模型把答案写好。判定仍保持宽容（只要真的发起 `get_weather` 就算过），参数正确性交给下面的严格项。
+> 工具调用那项的请求形状与 Chatbox 逐字一致：**不在 prompt 里点名工具**、**不发 `tool_choice`**、**不发 `max_tokens`**、走流式。判据也一致——`try/catch` 包住 `chat()`，不抛异常即 ✓。模型是否真的会调工具、参数对不对，全部交给下面的严格项。
 
 ### 增强判分项
 
