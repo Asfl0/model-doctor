@@ -1,0 +1,14 @@
+{
+  "name": "model-doctor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portable standalone model capability tester (basic / vision / reasoning / tool call / json)",
+  "bin": { "model-doctor": "./bin/model-doctor.mjs" },
+  "main": "./src/server.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node bin/model-doctor.mjs",
+    "dev": "node bin/model-doctor.mjs --no-open"
+  },
+  "engines": { "node": ">=18" }
+}

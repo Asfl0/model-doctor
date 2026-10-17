@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Model Doctor · 模型能力测试</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- 侧栏 -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">🩺</div>
+          <div>
+            <h1>Model Doctor</h1>
+            <p>模型能力体检</p>
+          </div>
+        </div>
+
+        <form id="config-form" class="panel">
+          <div class="field">
+            <label for="baseUrl">Base URL</label>
+            <input id="baseUrl" type="text" placeholder="https://api.openai.com/v1" value="http://127.0.0.1:3000/v1" autocomplete="off" spellcheck="false" />
+            <div class="presets" id="presets"></div>
+          </div>
+
+          <div class="field">
+            <label for="apiKey">API Key</label>
+            <div class="input-row">
+              <input id="apiKey" type="password" placeholder="sk-..." value="sk-wmUc7Py2hCKcF8RQngTG8M8V09y7h7UIxMPZEaRXWHTLVzb0" autocomplete="off" spellcheck="false" />
+              <button type="button" class="icon-btn" id="toggle-key" title="显示/隐藏">👁</button>
+            </div>
+            <label class="check small"><input type="checkbox" id="remember" /> 记住配置（仅存本机 localStorage）</label>
+          </div>
+
+          <div class="field">
+            <label for="model">Model</label>
+            <div class="input-row">
+              <input id="model" type="text" placeholder="gpt-4o-mini" autocomplete="off" spellcheck="false" />
+              <button type="button" class="icon-btn" id="fetch-models" title="搜索上游模型">🔍</button>
+            </div>
+            <div class="hint" id="models-hint"></div>
+            <div class="model-chips" id="model-chips"></div>
+          </div>
+
+          <div class="model-picker hidden" id="model-picker">
+            <div class="model-picker-head">
+              <input id="model-search" type="search" placeholder="搜索模型名（支持模糊匹配 / 空格分隔多个关键词）" autocomplete="off" spellcheck="false" />
+              <button type="button" class="icon-btn" id="model-refresh" title="重新拉取">⟳</button>
+              <button type="button" class="icon-btn" id="model-picker-close" title="关闭">✕</button>
+            </div>
+            <div class="model-picker-meta" id="model-picker-meta"></div>
+            <div class="model-picker-list" id="model-picker-list"></div>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label for="concurrency">并发</label>
+              <input id="concurrency" type="number" min="1" max="8" value="3" />
+            </div>
+            <div class="field">
+              <label for="timeout">超时(秒)</label>
+              <input id="timeout" type="number" min="5" max="600" value="120" />
+            </div>
+          </div>
+        </form>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span>测试项</span>
+            <button type="button" class="link-btn" id="toggle-all">全选</button>
+          </div>
+          <div id="test-list" class="test-list"></div>
+        </div>
+
+        <div class="actions">
+          <button id="run-btn" class="primary">开始测试</button>
+          <button id="cancel-btn" class="ghost" disabled>停止</button>
+        </div>
+      </aside>
+
+      <!-- 主区 -->
+      <main class="main">
+        <header class="topbar">
+          <div class="target" id="target-label">尚未测试</div>
+          <div class="topbar-right">
+            <button type="button" class="ghost small" id="export-json">导出 JSON</button>
+            <button type="button" class="ghost small" id="copy-md">复制 Markdown</button>
+          </div>
+        </header>
+
+        <section id="verdict-card" class="verdict empty">
+          <div class="verdict-main">
+            <div class="verdict-tier" id="verdict-tier">等待开始</div>
+            <div class="verdict-label" id="verdict-label">填写 Base URL、API Key 与 Model 后开始</div>
+          </div>
+          <div class="verdict-stats" id="verdict-stats"></div>
+        </section>
+
+        <section class="progress-wrap">
+          <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+          <div class="progress-text" id="progress-text">0 / 0</div>
+        </section>
+
+        <section id="results" class="results"></section>
+
+        <section id="detail-panel" class="detail hidden">
+          <div class="detail-head">
+            <span id="detail-title">详情</span>
+            <button type="button" class="icon-btn" id="detail-close">✕</button>
+          </div>
+          <pre id="detail-body"></pre>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
